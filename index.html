@@ -1,45 +1,37 @@
 <!DOCTYPE html>
 <html>
-  <!-- based on https://github.com/rtestardi/usbte -->
-
-
-<head>
-<meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
-<title>WebUSBTerm</title>
-    <style>
-      pre { white-space: pre-wrap; word-wrap: break-word; }
-      a { text-decoration: none; }
-      #results { line-height: 1.0; }
-      #command { width: 96%; font-size:80%; }
-      #copyright { font-size:65%; padding: 0px; }
-      * { overflow-wrap: anywhere; word-wrap: anywhere; }
-      button { overflow-wrap: normal; word-wrap: normal; }
-      html,button,input { font: 18px Arial, Helvetica, sans-serif; padding: 15px 10px 15px 10px; margin: 15px 0px 15px 0px; }
-      @media(min-width:80em){ html,button,input { font: 24px Arial, Helvetica, sans-serif; padding: 10px; margin: 10px 0px 10px 0px; } }
-      @supports(-webkit-touch-callout:none) { button,input { -webkit-appearance: none; border-radius: 2px; } }
-      body,html { margin: 0px; }
-    </style>
-
-</head>
-
-<body onload='body()'>
-
-<h4>Web USB Terminal</h4>
-
-<p>
-<button type='button' id="SerialConnectButton" onclick="connect();">Connect</button>
-
-<pre id='results'></pre>
-
-<input id='command' name='command' disabled='true' autocomplete='off' autocorrect='off' autocapitalize='off' spellcheck='false'/>
-<br>
-<button type='button' onclick='enter();'>Enter</button>
-<button type='button' onclick='clear();'>Clear</button>
-
+   <!-- based on https://github.com/rtestardi/usbte -->
+   <!-- screen size problem when it starts to scroll and Disconnect pressed: can't click the Connect button -->
+   <head>
+      <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+      <title>WebUSBTerm</title>
+      <style>
+         pre { white-space: pre-wrap; word-wrap: break-word; }
+         a { text-decoration: none; }
+         #results { line-height: 1.0; }
+         #command { width: 96%; font-size:80%; }
+         #copyright { font-size:65%; padding: 0px; }
+         * { overflow-wrap: anywhere; word-wrap: anywhere; }
+         button { overflow-wrap: normal; word-wrap: normal; }
+         html,button,input { font: 18px Arial, Helvetica, sans-serif; padding: 15px 10px 15px 10px; margin: 15px 0px 15px 0px; }
+         @media(min-width:80em){ html,button,input { font: 24px Arial, Helvetica, sans-serif; padding: 10px; margin: 10px 0px 10px 0px; } }
+         @supports(-webkit-touch-callout:none) { button,input { -webkit-appearance: none; border-radius: 2px; } }
+         body,html { margin: 0px; }
+      </style>
+   </head>
+   <body onload='body()'>
+      <h4>Web USB Terminal</h4>
+      <p>
+         <button type='button' id="SerialConnectButton" onclick="connect();">Connect</button>
+      <pre id='results'></pre>
+      <input id='command' name='command' disabled='true' autocomplete='off' autocorrect='off' autocapitalize='off' spellcheck='false'/>
+      <br>
+      <button type='button' onclick='enter();'>Enter</button>
+      <button type='button' onclick='clear();'>Clear</button>
 
 
 <script>
-
+/*********************************************************************************/
 var port;
 var reader;
 var writer;
@@ -49,65 +41,68 @@ var dec = new TextDecoder();
 var lines = [];
 var cursor = 0;
 var first = false;
-const connectButton = document.getElementById ('SerialConnectButton');
+const connectButton = document.getElementById('SerialConnectButton');
 
-// the user loaded the webpage; set up keyboard listeners
-function body()
-{
+// webpage has loaded; set up keyboard listeners
+function body() {
     document.body.addEventListener("keydown", function(event) {
-      if ((event.keyCode === 67 || event.keyCode === 68) && event.ctrlKey && document.activeElement === document.getElementById("command")) {
-        // ctrl-c or ctrl-d in command line -- flow thru to device
-        event.preventDefault();
-        event.stopPropagation();
-        send(String.fromCharCode(event.keyCode - 64));
-      }
-      if (event.keyCode === 13) {
-        // enter -- run the command line
-        event.preventDefault();
-        enter();
-      }
-      if (event.keyCode === 40) {
-        // down arrow -- recall a newer command line
-        event.preventDefault();
-        upDown(false);
-      }
-      if (event.keyCode === 38) {
-        // up arrow -- recall an older command line
-        event.preventDefault();
-        upDown(true);
-      }
+        if ((event.keyCode === 67 || event.keyCode === 68) && event.ctrlKey && document.activeElement === document.getElementById("command")) {
+            // ctrl-c or ctrl-d in command line -- flow thru to device
+            event.preventDefault();
+            event.stopPropagation();
+            send(String.fromCharCode(event.keyCode - 64));
+        }
+        if (event.keyCode === 13) {
+            // enter -- run the command line
+            event.preventDefault();
+            enter();
+        }
+        if (event.keyCode === 40) {
+            // down arrow -- recall a newer command line
+            event.preventDefault();
+            upDown(false);
+        }
+        if (event.keyCode === 38) {
+            // up arrow -- recall an older command line
+            event.preventDefault();
+            upDown(true);
+        }
     })
 }
 
-
-// the user wants to connect to an emulated COM port
-async function connect()
-{
+async function connect() {
     var filter = {};
-    
+
     if ('serial' in navigator) {
-      if (port) { //if we are connected then close the port
-        await disconnect();
-        port = null;
-        return;
-      }
-      try {
-        port = await navigator.serial.requestPort("usbVendorId" in filter ? { filters: [{ usbVendorId: 0x0d28, usbProductId: 0x0204 },] } : {});
-        await port.open({ baudRate: 115200, bufferSize: 64 });
-        reader = port.readable.getReader();
-        writer = port.writable.getWriter();
-        setTimeout(receive, 100);
-        document.getElementById("command").disabled = false;
-        document.getElementById("command").focus();
-        connectButton.innerText = 'Disconnect'; //blank when connected
-        //connectButton.disabled = true;
-      } catch(err) {
-        document.getElementById("results").innerHTML += err.message.replace(/</g,'&lt;').replace(/>/g,'&gt;') + "\r";
-      }
+        if (port) { //if we are already connected then close the port
+            await disconnect();
+            port = null;
+            return;
+        }
+        try {
+            port = await navigator.serial.requestPort("usbVendorId" in filter ? {
+                filters: [{   //microbit Ids
+                    usbVendorId: 0x0d28,
+                    usbProductId: 0x0204
+                }, ]
+            } : {});
+            await port.open({
+                baudRate: 115200,
+                bufferSize: 64
+            });
+            reader = port.readable.getReader();
+            writer = port.writable.getWriter();
+            setTimeout(receive, 100);
+            document.getElementById("command").disabled = false;
+            document.getElementById("command").focus();
+            connectButton.innerText = 'Disconnect'; //change button text
+        } catch (err) {
+            document.getElementById("results").innerHTML += err.message.replace(/</g, '&lt;').replace(/>/g, '&gt;') + "\r";
+        }
     } else {
-      /* UPDATE THIS TEXT!!!!*/
+        /* UPDATE THIS TEXT!!!!*/
         document.getElementById("results").innerHTML +=
-`The Web serial API needs to be enabled in your browser thru:
+            `The Web serial API needs to be enabled in your browser thru:
    - <a href=edge://flags/#enable-experimental-web-platform-features>edge://flags/#enable-experimental-web-platform-features</a>
    - <a href=chrome://flags/#enable-experimental-web-platform-features>chrome://flags/#enable-experimental-web-platform-features</a>
    - <a href=opera://flags/#enable-experimental-web-platform-features>opera://flags/#enable-experimental-web-platform-features</a>
@@ -116,82 +111,77 @@ async function connect()
 }
 
 async function disconnect() {
-  if (reader) {
-    await reader.cancel();
-    //reader = null;
-  }
-  connectButton.innerText = 'Connect';
-  
+    if (reader) {
+        await reader.cancel();
+        //reader = null;
+    }
+    connectButton.innerText = 'Connect';
+
 }
 
 // receive a string from the device
-async function receive()
-{
-  var result;
-  var str;
-  result = await reader.read();
-  str = dec.decode(result.value);
-    
-  if (str.match(/\033[[]2J/)) {
-    // clear screen on cls  XXX -- misses fragmented escape
-    clear();
-  } else {
-    document.getElementById("results").innerHTML += str.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'');
-  }
-  document.getElementById("command").scrollIntoView();
-  setTimeout(receive, 10);
+async function receive() {
+    var result;
+    var str;
+    result = await reader.read();
+    str = dec.decode(result.value);
+
+    if (str.match(/\033[[]2J/)) {
+        // clear screen on cls  XXX -- misses fragmented escape
+        clear();
+    } else {
+        document.getElementById("results").innerHTML += str.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '');
+    }
+    document.getElementById("command").scrollIntoView();
+    setTimeout(receive, 10);
 }
 
 // send a string to the device
-async function send(str)
-{
-  await writer.write(enc.encode(str).buffer);
-  document.getElementById("command").value = "";
-  document.getElementById("command").focus();
+async function send(str) {
+    await writer.write(enc.encode(str).buffer);
+    document.getElementById("command").value = "";
+    document.getElementById("command").focus();
 }
 
 // the user clicked the Enter button; run the user command line
-async function enter()
-{
-  var str = document.getElementById("command").value;
-  if (str.length && (! lines.length || str != lines[lines.length-1])) {
-      lines.push(str);
-  }
-  send(str + "\r");
-  first = true;
+async function enter() {
+    var str = document.getElementById("command").value;
+    if (str.length && (!lines.length || str != lines[lines.length - 1])) {
+        lines.push(str);
+    }
+    send(str + "\r");
+    first = true;
 }
 
 // the user typed up-arrow or down-arrow to recall an older or newer command line
-function upDown(up)
-{
-  if (first && up) {
-    // an initial up-arrow recalls the last hyperlink from the results history
-    cursor = 0;
-  }
-  if (lines.length) {
-    // recall the requested hyperlink from the results history to the equation line
-    if (up) {
-      // older
-      cursor = (cursor+lines.length-1)%lines.length;
-    } else {
-      // newer
-      cursor = (cursor+1)%lines.length;
+function upDown(up) {
+    if (first && up) {
+        // an initial up-arrow recalls the last hyperlink from the results history
+        cursor = 0;
     }
-    document.getElementById("command").value = lines[cursor];
-    first = false;
-  }
+    if (lines.length) {
+        // recall the requested hyperlink from the results history to the equation line
+        if (up) {
+            // older
+            cursor = (cursor + lines.length - 1) % lines.length;
+        } else {
+            // newer
+            cursor = (cursor + 1) % lines.length;
+        }
+        document.getElementById("command").value = lines[cursor];
+        first = false;
+    }
 }
 
 
 // the user clicked the Clear button; clear the command, results, and history list
-async function clear()
-{
-  document.getElementById("results").innerHTML = "";
-  document.getElementById("command").value = "";
-  document.getElementById("command").focus();
-  connectButton.innerText = 'Connect';
-  //connectButton.disabled = false;
-  //lines = [];
+async function clear() {
+    document.getElementById("results").innerHTML = "";
+    document.getElementById("command").value = "";
+    document.getElementById("command").focus();
+    connectButton.innerText = 'Connect';
+    //connectButton.disabled = false;
+    //lines = [];
 }
 
 </script>
