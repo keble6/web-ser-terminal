@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
-   <!-- based on https://github.com/rtestardi/usbte -->
-   <!-- screen size problem when it starts to scroll and Disconnect pressed: can't click the Connect button -->
+   <!-- based on https://github.com/rtestardi/usbte Copyright (c) 2022 Rich Testardi -->
+   <!-- TODO: press Disconnect then Connect: get error - Failed to execute 'open' on 'SerialPort': The port is already open.
+ -->
    <head>
       <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
       <title>WebUSBTerm</title>
@@ -27,7 +28,9 @@
       <input id='command' name='command' disabled='true' autocomplete='off' autocorrect='off' autocapitalize='off' spellcheck='false'/>
       <br>
       <button type='button' onclick='enter();'>Enter</button>
-      <button type='button' onclick='clear();'>Clear</button>
+      <button type='button' onclick='Clear();'>Clear</button>
+
+      
 
 
 <script>
@@ -115,6 +118,7 @@ async function disconnect() {
         await reader.cancel();
         //reader = null;
     }
+    Clear();
     connectButton.innerText = 'Connect';
 
 }
@@ -128,12 +132,13 @@ async function receive() {
 
     if (str.match(/\033[[]2J/)) {
         // clear screen on cls  XXX -- misses fragmented escape
-        clear();
+        Clear();
     } else {
         document.getElementById("results").innerHTML += str.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '');
     }
     document.getElementById("command").scrollIntoView();
     setTimeout(receive, 10);
+    
 }
 
 // send a string to the device
@@ -175,15 +180,14 @@ function upDown(up) {
 
 
 // the user clicked the Clear button; clear the command, results, and history list
-async function clear() {
+async function Clear() {
     document.getElementById("results").innerHTML = "";
     document.getElementById("command").value = "";
     document.getElementById("command").focus();
-    connectButton.innerText = 'Connect';
-    //connectButton.disabled = false;
+    //connectButton.innerText = 'Connect';
     //lines = [];
 }
 
 </script>
-</body>
+    </body>
 </html>
