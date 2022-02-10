@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html>
-   <!-- based on https://github.com/rtestardi/usbte Copyright (c) 2022 Rich Testardi -->
-   <!-- TODO: press Disconnect then Connect: get error - Failed to execute 'open' on 'SerialPort': The port is already open.
- -->
+   <!-- based on https://github.com/rtestardi/usbte -->
+   <!-- screen size problem when it starts to scroll and Disconnect pressed: can't click the Connect button -->
    <head>
       <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
       <title>WebUSBTerm</title>
@@ -29,7 +28,7 @@
       <br>
       <button type='button' onclick='enter();'>Enter</button>
       <button type='button' onclick='Clear();'>Clear</button>
-
+      <button type='button' onclick='download();'>Save to file</button>
       
 
 
@@ -45,6 +44,18 @@ var lines = [];
 var cursor = 0;
 var first = false;
 const connectButton = document.getElementById('SerialConnectButton');
+var text=''; //for file save
+
+//save the received text as a file
+function download(){
+  const a = document.createElement('a') // Create "a" element
+  const blob = new Blob([text], {type: 'text/csv'}) // Create a blob (file-like object)
+  const url = window.URL.createObjectURL(blob);
+  a.setAttribute('href', url) // Set "a" element link
+  a.setAttribute('download', 'results.csv') // Set default download filename
+  a.click() // Start downloading
+}
+
 
 // webpage has loaded; set up keyboard listeners
 function body() {
@@ -70,6 +81,7 @@ function body() {
             event.preventDefault();
             upDown(true);
         }
+        
     })
 }
 
@@ -118,7 +130,6 @@ async function disconnect() {
         await reader.cancel();
         //reader = null;
     }
-    Clear();
     connectButton.innerText = 'Connect';
 
 }
@@ -129,15 +140,19 @@ async function receive() {
     var str;
     result = await reader.read();
     str = dec.decode(result.value);
+    text += str; //for the save file
+    
 
     if (str.match(/\033[[]2J/)) {
         // clear screen on cls  XXX -- misses fragmented escape
-        Clear();
+        clear();
     } else {
         document.getElementById("results").innerHTML += str.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '');
+        
     }
     document.getElementById("command").scrollIntoView();
     setTimeout(receive, 10);
+
     
 }
 
@@ -184,10 +199,10 @@ async function Clear() {
     document.getElementById("results").innerHTML = "";
     document.getElementById("command").value = "";
     document.getElementById("command").focus();
-    //connectButton.innerText = 'Connect';
-    //lines = [];
+    text='';
+    lines = [];
 }
 
 </script>
-    </body>
+</body>
 </html>
